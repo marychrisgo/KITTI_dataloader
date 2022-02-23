@@ -1,4 +1,5 @@
 import os
+import io
 import numpy as np
 import pandas as pd
 import cv2
@@ -7,13 +8,26 @@ import torch
 
 # KITTI grayscale only
 class KITTI_dataset_handler():
-    def __init__(self, sequence):
+    """KITTI dataset"""
+    def __init__(self, sequence, transform = None):
+
+        """
+        Args:
+            sequence: directory path with the images
+            transform (callable, optional): Optional transform to be applied
+                on a sample.
+        """
+
         # Set file paths
+        self.sequence       = sequence
         self.sequence_path  = './dataset/sequences/{}/'.format(sequence)
         self.poses_path     = './dataset/poses/{}.txt'.format(sequence)
         poses               = pd.read_csv(self.poses_path, delimiter=' ', header=None)
         
         # Iteration through the names of files
+        self.left           = 'image_0/'
+        self.right          = 'image_1/'
+        self.right          = os.path.join(self.sequence_path, 'image_1')
         self.left_imgs      = os.listdir(self.sequence_path + 'image_0')
         self.right_imgs     = os.listdir(self.sequence_path + 'image_1')
 
@@ -46,6 +60,24 @@ class KITTI_dataset_handler():
         # height and width 
         self.imw              = self.first_img_left.shape[1]
         self.imh              = self.first_img_left.shape[0]
+        self.transform        = transform
 
     def __len__(self):
         return len(self.left_imgs)
+
+    def __getitem__(self, idx):
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+            
+        img_name = os.path.join(self.sequence_path + 'image_0/'
+                                            + self.left_imgs[idx], 0)
+        
+        final_img = cv2.imread(img_name)
+
+        sample = {'image': final_img}
+        
+        if self.transform:
+            sample = sample.transform(sample)
+        return sample
+    
+
